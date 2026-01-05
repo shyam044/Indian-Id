@@ -133,12 +133,10 @@
             max-width: 100%;
             max-height: 200px;
             border-radius: 10px;
-            margin-top: 10px;
+            margin: 10px auto;
             display: none;
             cursor: pointer;
             display: block;
-            margin-left: auto;
-            margin-right: auto;
         }
 
         .status {
@@ -150,17 +148,37 @@
         .status.upload-ready { color: #667eea; }
         .status.stored { color: #28a745; }
 
-        .remove-btn {
-            background: #dc3545;
-            color: white;
-            border: none;
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .download-btn, .remove-btn {
             padding: 8px 16px;
+            border: none;
             border-radius: 15px;
             cursor: pointer;
             font-size: 0.9em;
             transition: background 0.3s ease;
-            display: block;
-            margin: 10px auto 0;
+            text-decoration: none;
+            display: inline-block;
+            line-height: 1.2;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+        }
+
+        .download-btn:hover {
+            background: linear-gradient(135deg, #0056b3, #004085);
+        }
+
+        .remove-btn {
+            background: #dc3545;
+            color: white;
         }
 
         .remove-btn:hover {
@@ -210,6 +228,11 @@
             .documents-grid {
                 grid-template-columns: 1fr;
             }
+
+            .action-buttons {
+                flex-direction: column;
+                gap: 5px;
+            }
         }
     </style>
 </head>
@@ -220,7 +243,7 @@
 
     <div class="container">
         <div class="install-section">
-            <button class="install-btn" id="install-app" style="display: none;">📱 Install App</button>
+            <button class="install-btn" id="install-app" style="display: none;">📱 Install App to Device</button>
         </div>
         <h1>Secure Document Vault</h1>
         <p style="color: #666; margin-bottom: 30px;">Safely upload and manage your essential documents. Your files are stored securely in your browser.</p>
@@ -233,7 +256,10 @@
                 <button class="upload-btn" onclick="triggerUpload('aadhar')">Upload Document</button>
                 <div class="status upload-ready">Ready to upload</div>
                 <img class="preview" id="aadhar-preview" alt="Aadhar Preview" onclick="openModal(this.src)">
-                <button class="remove-btn" id="aadhar-remove" onclick="removeDocument('aadhar')" style="display: none;">Remove</button>
+                <div class="action-buttons" id="aadhar-actions" style="display: none;">
+                    <button class="download-btn" id="aadhar-download" onclick="downloadDocument('aadhar')">⬇️ Download</button>
+                    <button class="remove-btn" id="aadhar-remove" onclick="removeDocument('aadhar')">❌ Remove</button>
+                </div>
             </div>
 
             <div class="document-card pan upload-mode" id="pan-card">
@@ -243,7 +269,10 @@
                 <button class="upload-btn" onclick="triggerUpload('pan')">Upload Document</button>
                 <div class="status upload-ready">Ready to upload</div>
                 <img class="preview" id="pan-preview" alt="PAN Preview" onclick="openModal(this.src)">
-                <button class="remove-btn" id="pan-remove" onclick="removeDocument('pan')" style="display: none;">Remove</button>
+                <div class="action-buttons" id="pan-actions" style="display: none;">
+                    <button class="download-btn" id="pan-download" onclick="downloadDocument('pan')">⬇️ Download</button>
+                    <button class="remove-btn" id="pan-remove" onclick="removeDocument('pan')">❌ Remove</button>
+                </div>
             </div>
 
             <div class="document-card license upload-mode" id="license-card">
@@ -253,7 +282,10 @@
                 <button class="upload-btn" onclick="triggerUpload('license')">Upload Document</button>
                 <div class="status upload-ready">Ready to upload</div>
                 <img class="preview" id="license-preview" alt="License Preview" onclick="openModal(this.src)">
-                <button class="remove-btn" id="license-remove" onclick="removeDocument('license')" style="display: none;">Remove</button>
+                <div class="action-buttons" id="license-actions" style="display: none;">
+                    <button class="download-btn" id="license-download" onclick="downloadDocument('license')">⬇️ Download</button>
+                    <button class="remove-btn" id="license-remove" onclick="removeDocument('license')">❌ Remove</button>
+                </div>
             </div>
         </div>
     </div>
@@ -289,13 +321,25 @@
             document.getElementById('modal').style.display = 'none';
         }
 
+        function downloadDocument(docType) {
+            const dataUrl = documents[docType];
+            if (!dataUrl) return;
+
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = `${docType}_card.${dataUrl.split(';')[0].split('/')[1] === 'pdf' ? 'pdf' : 'jpg'}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
         function showStoredDocument(docType, dataUrl) {
             const card = document.getElementById(`${docType}-card`);
             const title = card.querySelector('.title');
             const btn = card.querySelector('.upload-btn');
             const status = card.querySelector('.status');
             const preview = card.querySelector('.preview');
-            const removeBtn = card.querySelector('.remove-btn');
+            const actions = card.querySelector('.action-buttons');
 
             title.textContent = `Your ${docType.charAt(0).toUpperCase() + docType.slice(1)} Card`;
             btn.style.display = 'none';
@@ -303,7 +347,7 @@
             status.className = 'status stored';
             preview.src = dataUrl;
             preview.style.display = 'block';
-            removeBtn.style.display = 'block';
+            actions.style.display = 'flex';
 
             card.className = 'document-card ' + docType + ' stored-mode';
         }
@@ -315,14 +359,14 @@
             const btn = card.querySelector('.upload-btn');
             const status = card.querySelector('.status');
             const preview = card.querySelector('.preview');
-            const removeBtn = card.querySelector('.remove-btn');
+            const actions = card.querySelector('.action-buttons');
 
             title.textContent = `Upload Your ${docType.charAt(0).toUpperCase() + docType.slice(1)} Card`;
             btn.style.display = 'block';
             status.textContent = 'Ready to upload';
             status.className = 'status upload-ready';
             preview.style.display = 'none';
-            removeBtn.style.display = 'none';
+            actions.style.display = 'none';
 
             card.className = 'document-card ' + docType + ' upload-mode';
 
@@ -399,8 +443,6 @@
                     }
                 });
             });
-
-            // Modal close on outside click (already handled in HTML onclick)
         });
     </script>
 </body>
