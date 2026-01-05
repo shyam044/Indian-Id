@@ -1,0 +1,16 @@
+{
+  "name": "Secure Document Vault",
+  "short_name": "DocVault",
+  "description": "Safely store your documents",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#667eea",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiBmaWxsPSIjNjY3ZWVhIi8+CjxwYXRoIGQ9Ik0xNCAxNDFIMTc4VjE0MUgxNFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xNCAxMzBIMTc4VjEzMEgxNFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xNCAxMTlIMTc4VjExOUgxNFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xNCAxMDhIMTc4VjEwOEgxNFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xNCA5N0gxNzhWOTdIMTRaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}
