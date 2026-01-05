@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Secure Document Vault</title>
+    <link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjogIlNlY3VyZSBEb2N1bWVudCBWYXVsdCIsICJzaG9ydF9uYW1lIjogIkRvY1ZhdWx0IiwgImRlc2NyaXB0aW9uIjogIlNhZmVseSBzdG9yZSB5b3VyIGRvY3VtZW50cyIsICJzdGFydF91cmwiOiAiLyIsICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLCAiYmFja2dyb3VuZF9jb2xvciI6ICIjZmZmZmZmIiwgInRoZW1lX2NvbG9yIjogIiM2NjdlZWEiLCAiaWNvbnMiOiBbeyJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCM2FXUjBhRDBpTVRreUlpQm9aV2xuYUhROUlqRTVNaUlnZUcxc2JuTTlJbWgwZEhBNkx5OTNkM2N1ZHpNdWIzSm5Mekl3TURBdmMzWm5JajQ4Y21WamRDQjNhV1IwYUQwaU1Ua3lJaUJvWldsbmFIUTlJakU1TWlJZ1ptbHNiRDBpSXpZMk4yVmxZU0l2UGp4MFpYaDBJSGc5SWprMklpQjVQU0l4TURBaUlHWnZiblF0Wm1GdGFXeDVQU0pCY21saGJDSWdabTl1ZEMxemFYcGxQU0l4TkNJZ1ptbHNiRDBpZDJocGRHVWlJSFJsZUhRdFlXNWphRzl5UFNKdGFXUmtiR1VpUGtSRFBDOTBaWGgwUGp3dmMzWm5QZz09IiwgInNpemVzIjogIjE5MngxOTIiLCAidHlwZSI6ICJpbWFnZS9zdmcreG1sIn1dfQ==">
     <style>
         * {
             margin: 0;
@@ -29,6 +30,25 @@
             max-width: 800px;
             width: 100%;
             text-align: center;
+        }
+
+        .install-section {
+            margin-bottom: 20px;
+        }
+
+        .install-btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s ease;
+        }
+
+        .install-btn:hover {
+            background: linear-gradient(135deg, #218838, #1ea085);
         }
 
         h1 {
@@ -115,6 +135,10 @@
             border-radius: 10px;
             margin-top: 10px;
             display: none;
+            cursor: pointer;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .status {
@@ -130,16 +154,39 @@
             background: #dc3545;
             color: white;
             border: none;
-            padding: 5px 10px;
+            padding: 8px 16px;
             border-radius: 15px;
             cursor: pointer;
-            font-size: 0.8em;
-            margin-left: 10px;
+            font-size: 0.9em;
             transition: background 0.3s ease;
+            display: block;
+            margin: 10px auto 0;
         }
 
         .remove-btn:hover {
             background: #c82333;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+
+        .modal img {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
 
         @keyframes fadeIn {
@@ -167,38 +214,45 @@
     </style>
 </head>
 <body>
+    <div class="modal" id="modal" onclick="closeModal()">
+        <img id="modal-img" src="" alt="Enlarged Preview">
+    </div>
+
     <div class="container">
+        <div class="install-section">
+            <button class="install-btn" id="install-app" style="display: none;">📱 Install App</button>
+        </div>
         <h1>Secure Document Vault</h1>
         <p style="color: #666; margin-bottom: 30px;">Safely upload and manage your essential documents. Your files are stored securely in your browser.</p>
         
         <div class="documents-grid">
-            <div class="document-card aadhar" id="aadhar-card">
+            <div class="document-card aadhar upload-mode" id="aadhar-card">
                 <span class="icon">🆔</span>
                 <div class="title">Upload Your Aadhar Card</div>
                 <input type="file" class="file-input" id="aadhar-input" accept="image/*,.pdf">
                 <button class="upload-btn" onclick="triggerUpload('aadhar')">Upload Document</button>
                 <div class="status upload-ready">Ready to upload</div>
-                <img class="preview" id="aadhar-preview" alt="Aadhar Preview">
+                <img class="preview" id="aadhar-preview" alt="Aadhar Preview" onclick="openModal(this.src)">
                 <button class="remove-btn" id="aadhar-remove" onclick="removeDocument('aadhar')" style="display: none;">Remove</button>
             </div>
 
-            <div class="document-card pan" id="pan-card">
+            <div class="document-card pan upload-mode" id="pan-card">
                 <span class="icon">💳</span>
                 <div class="title">Upload Your PAN Card</div>
                 <input type="file" class="file-input" id="pan-input" accept="image/*,.pdf">
                 <button class="upload-btn" onclick="triggerUpload('pan')">Upload Document</button>
                 <div class="status upload-ready">Ready to upload</div>
-                <img class="preview" id="pan-preview" alt="PAN Preview">
+                <img class="preview" id="pan-preview" alt="PAN Preview" onclick="openModal(this.src)">
                 <button class="remove-btn" id="pan-remove" onclick="removeDocument('pan')" style="display: none;">Remove</button>
             </div>
 
-            <div class="document-card license" id="license-card">
+            <div class="document-card license upload-mode" id="license-card">
                 <span class="icon">🚗</span>
                 <div class="title">Upload Your Driving License</div>
                 <input type="file" class="file-input" id="license-input" accept="image/*,.pdf">
                 <button class="upload-btn" onclick="triggerUpload('license')">Upload Document</button>
                 <div class="status upload-ready">Ready to upload</div>
-                <img class="preview" id="license-preview" alt="License Preview">
+                <img class="preview" id="license-preview" alt="License Preview" onclick="openModal(this.src)">
                 <button class="remove-btn" id="license-remove" onclick="removeDocument('license')" style="display: none;">Remove</button>
             </div>
         </div>
@@ -224,6 +278,17 @@
             input.click();
         }
 
+        function openModal(src) {
+            const modal = document.getElementById('modal');
+            const modalImg = document.getElementById('modal-img');
+            modal.style.display = 'block';
+            modalImg.src = src;
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
         function showStoredDocument(docType, dataUrl) {
             const card = document.getElementById(`${docType}-card`);
             const title = card.querySelector('.title');
@@ -238,7 +303,7 @@
             status.className = 'status stored';
             preview.src = dataUrl;
             preview.style.display = 'block';
-            removeBtn.style.display = 'inline-block';
+            removeBtn.style.display = 'block';
 
             card.className = 'document-card ' + docType + ' stored-mode';
         }
@@ -264,6 +329,58 @@
             documents[docType] = null;
         }
 
+        // PWA Install
+        let deferredPrompt;
+        const installBtn = document.getElementById('install-app');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.style.display = 'inline-block';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    deferredPrompt = null;
+                    installBtn.style.display = 'none';
+                }
+            }
+        });
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                const CACHE_NAME = 'document-vault-v1';
+                const urlsToCache = ['/'];
+
+                self.addEventListener('install', (event) => {
+                    event.waitUntil(
+                        caches.open(CACHE_NAME)
+                            .then((cache) => cache.addAll(urlsToCache))
+                    );
+                });
+
+                self.addEventListener('fetch', (event) => {
+                    event.respondWith(
+                        caches.match(event.request)
+                            .then((response) => {
+                                return response || fetch(event.request);
+                            })
+                    );
+                });
+            `;
+            navigator.serviceWorker.register(URL.createObjectURL(new Blob([swCode], { type: 'application/javascript' })))
+                .then((registration) => {
+                    console.log('SW registered: ', registration);
+                })
+                .catch((error) => {
+                    console.log('SW registration failed: ', error);
+                });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             initDocuments();
 
@@ -282,6 +399,8 @@
                     }
                 });
             });
+
+            // Modal close on outside click (already handled in HTML onclick)
         });
     </script>
 </body>
