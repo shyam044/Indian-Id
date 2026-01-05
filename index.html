@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Document Vault</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .documents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .document-card {
+            background: #f8f9ff;
+            border-radius: 15px;
+            padding: 30px 20px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 2px dashed #ddd;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .document-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .document-card.upload-mode {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #f0f2ff, #e8eaff);
+        }
+
+        .document-card.stored-mode {
+            border-color: #28a745;
+            background: linear-gradient(135deg, #f8fff8, #e8ffe8);
+        }
+
+        .icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .aadhar .icon { color: #ff6b6b; }
+        .pan .icon { color: #4ecdc4; }
+        .license .icon { color: #45b7d1; }
+
+        .title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .upload-btn:hover {
+            background: linear-gradient(135deg, #5a6fd8, #6a4190);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 10px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .status.upload-ready { color: #667eea; }
+        .status.stored { color: #28a745; }
+
+        .remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.8em;
+            margin-left: 10px;
+            transition: background 0.3s ease;
+        }
+
+        .remove-btn:hover {
+            background: #c82333;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .document-card {
+            animation: fadeIn 0.5s ease;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .documents-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Secure Document Vault</h1>
+        <p style="color: #666; margin-bottom: 30px;">Safely upload and manage your essential documents. Your files are stored securely in your browser.</p>
+        
+        <div class="documents-grid">
+            <div class="document-card aadhar" id="aadhar-card">
+                <span class="icon">🆔</span>
+                <div class="title">Upload Your Aadhar Card</div>
+                <input type="file" class="file-input" id="aadhar-input" accept="image/*,.pdf">
+                <button class="upload-btn" onclick="triggerUpload('aadhar')">Upload Document</button>
+                <div class="status upload-ready">Ready to upload</div>
+                <img class="preview" id="aadhar-preview" alt="Aadhar Preview">
+                <button class="remove-btn" id="aadhar-remove" onclick="removeDocument('aadhar')" style="display: none;">Remove</button>
+            </div>
+
+            <div class="document-card pan" id="pan-card">
+                <span class="icon">💳</span>
+                <div class="title">Upload Your PAN Card</div>
+                <input type="file" class="file-input" id="pan-input" accept="image/*,.pdf">
+                <button class="upload-btn" onclick="triggerUpload('pan')">Upload Document</button>
+                <div class="status upload-ready">Ready to upload</div>
+                <img class="preview" id="pan-preview" alt="PAN Preview">
+                <button class="remove-btn" id="pan-remove" onclick="removeDocument('pan')" style="display: none;">Remove</button>
+            </div>
+
+            <div class="document-card license" id="license-card">
+                <span class="icon">🚗</span>
+                <div class="title">Upload Your Driving License</div>
+                <input type="file" class="file-input" id="license-input" accept="image/*,.pdf">
+                <button class="upload-btn" onclick="triggerUpload('license')">Upload Document</button>
+                <div class="status upload-ready">Ready to upload</div>
+                <img class="preview" id="license-preview" alt="License Preview">
+                <button class="remove-btn" id="license-remove" onclick="removeDocument('license')" style="display: none;">Remove</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const documents = {
+            aadhar: localStorage.getItem('aadhar') || null,
+            pan: localStorage.getItem('pan') || null,
+            license: localStorage.getItem('license') || null
+        };
+
+        function initDocuments() {
+            Object.keys(documents).forEach(docType => {
+                if (documents[docType]) {
+                    showStoredDocument(docType, documents[docType]);
+                }
+            });
+        }
+
+        function triggerUpload(docType) {
+            const input = document.getElementById(`${docType}-input`);
+            input.click();
+        }
+
+        function showStoredDocument(docType, dataUrl) {
+            const card = document.getElementById(`${docType}-card`);
+            const title = card.querySelector('.title');
+            const btn = card.querySelector('.upload-btn');
+            const status = card.querySelector('.status');
+            const preview = card.querySelector('.preview');
+            const removeBtn = card.querySelector('.remove-btn');
+
+            title.textContent = `Your ${docType.charAt(0).toUpperCase() + docType.slice(1)} Card`;
+            btn.style.display = 'none';
+            status.textContent = 'Document Stored Securely';
+            status.className = 'status stored';
+            preview.src = dataUrl;
+            preview.style.display = 'block';
+            removeBtn.style.display = 'inline-block';
+
+            card.className = 'document-card ' + docType + ' stored-mode';
+        }
+
+        function removeDocument(docType) {
+            localStorage.removeItem(docType);
+            const card = document.getElementById(`${docType}-card`);
+            const title = card.querySelector('.title');
+            const btn = card.querySelector('.upload-btn');
+            const status = card.querySelector('.status');
+            const preview = card.querySelector('.preview');
+            const removeBtn = card.querySelector('.remove-btn');
+
+            title.textContent = `Upload Your ${docType.charAt(0).toUpperCase() + docType.slice(1)} Card`;
+            btn.style.display = 'block';
+            status.textContent = 'Ready to upload';
+            status.className = 'status upload-ready';
+            preview.style.display = 'none';
+            removeBtn.style.display = 'none';
+
+            card.className = 'document-card ' + docType + ' upload-mode';
+
+            documents[docType] = null;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initDocuments();
+
+            ['aadhar', 'pan', 'license'].forEach(docType => {
+                document.getElementById(`${docType}-input`).addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const dataUrl = e.target.result;
+                            localStorage.setItem(docType, dataUrl);
+                            documents[docType] = dataUrl;
+                            showStoredDocument(docType, dataUrl);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
