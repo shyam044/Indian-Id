@@ -1,18 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Document Vault</title>
-    <!-- PWA Essentials -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#667eea">
-    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiBmaWxsPSIjNjY3ZWVhIi8+CjxwYXRoIGQ9Ik0xNCAxNDFIMTc4VjE0MUgxNFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xNCAxMzBIMTc4VjEzMEgxNFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xNCAxMTlIMTc4VjExOUgxNFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xNCAxMDhIMTc4VjEwOEgxNFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xNCA5N0gxNzhWOTdIMTRaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K">
+    <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Secure Document Vault</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#667eea" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="personID" />
+
+  <!-- Apple icon -->
+  <link rel="apple-touch-icon" href="Screenshot 2025-12-31 022232.png" />
+
+  <!-- Fallback favicon (optional) -->
+  <link rel="icon" href="Screenshot 2025-12-31 022232.png" type="image/png" />
+
+  <!-- your existing CSS and inline styles -->
     <style>
         /* All previous CSS here - unchanged */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
-        .container { background: white; border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); padding: 40px; max-width: 800px; width: 100%; text-align: center; }
+        .container {  background: white; border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); padding: 40px; max-width: 800px; width: 100%; text-align: center; }
         .install-section { margin-bottom: 20px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
         .install-btn, .download-app-btn { background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-size: 1em; transition: background 0.3s ease; }
         .install-btn:hover, .download-app-btn:hover { background: linear-gradient(135deg, #218838, #1ea085); }
@@ -52,11 +64,12 @@
     </div>
 
     <div class="container">
+        
         <div class="install-section">
             <button class="install-btn" id="install-app" style="display: none;">📱 Install App to Device</button>
         </div>
-        <h1>Secure Document Vault</h1>
-        <p style="color: #666; margin-bottom: 30px;">Safely upload and manage your essential documents. Your files are stored securely in your browser.</p>
+        <h1>person ID</h1>
+      
         
         <div class="documents-grid">
             <div class="document-card aadhar upload-mode" id="aadhar-card">
