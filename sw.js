@@ -4,8 +4,7 @@ const PRECACHE_URLS = [
   '/index.html',
   '/manifest.json',
   '/sw.js',
-  '/assets/icons/personid-192.png',
-  '/assets/icons/personid-512.png'
+  '/Screenshot 2025-12-31 022232.png'
   // add any CSS/JS files here if you split them out
 ];
 
@@ -60,7 +59,7 @@ self.addEventListener('fetch', event => {
       }).catch(() => {
         // optional: return a fallback image for failed images
         if (request.destination === 'image') {
-          return caches.match('/assets/icons/personid-192.png');
+          return caches.match('/Screenshot 2025-12-31 022232.png');
         }
       });
     })
