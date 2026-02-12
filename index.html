@@ -2,24 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Secure Document Vault</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Secure Document Vault</title>
 
-  <!-- PWA -->
-  <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#667eea" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="personID" />
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#667eea" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="personID" />
 
-  <!-- Apple icon -->
-  <link rel="apple-touch-icon" href="Screenshot 2025-12-31 022232.png" />
+    <!-- Apple icon -->
+    <link rel="apple-touch-icon" href="Screenshot 2025-12-31 022232.png" />
 
-  <!-- Fallback favicon (optional) -->
-  <link rel="icon" href="Screenshot 2025-12-31 022232.png" type="image/png" />
+    <!-- Fallback favicon (optional) -->
+    <link rel="icon" href="Screenshot 2025-12-31 022232.png" type="image/png" />
 
-  <!-- your existing CSS and inline styles -->
+    <!-- your existing CSS and inline styles -->
     <style>
         /* All previous CSS here - unchanged */
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -56,11 +56,29 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .document-card { animation: fadeIn 0.5s ease; }
         @media (max-width: 600px) { .container { padding: 20px; } h1 { font-size: 2em; } .documents-grid { grid-template-columns: 1fr; } .action-buttons { flex-direction: column; gap: 5px; } .install-section { flex-direction: column; gap: 10px; } }
+
+        /* New styles for password modal */
+        .password-modal { display: none; align-items: center; justify-content: center; }
+        .password-container { background: white; border-radius: 15px; padding: 30px; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.2); max-width: 400px; }
+        .password-container h2 { margin-bottom: 20px; }
+        .password-container input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        .password-container button { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; }
+        .password-container button:hover { background: linear-gradient(135deg, #5a6fd8, #6a4190); }
+        .password-message { color: red; margin-top: 10px; }
     </style>
 </head>
 <body>
     <div class="modal" id="modal" onclick="closeModal()">
         <img id="modal-img" src="" alt="Enlarged Preview">
+    </div>
+
+    <div class="modal password-modal" id="password-modal">
+        <div class="password-container">
+            <h2 id="password-title">Enter Password</h2>
+            <input type="password" id="password-input" placeholder="Password">
+            <button id="submit-password">Submit</button>
+            <div class="password-message" id="password-message"></div>
+        </div>
     </div>
 
     <div class="container">
@@ -114,20 +132,238 @@
     </div>
 
     <script>
-        // All previous JS here, but update SW registration to: navigator.serviceWorker.register('/sw.js')
-        const documents = { aadhar: localStorage.getItem('aadhar') || null, pan: localStorage.getItem('pan') || null, license: localStorage.getItem('license') || null };
-        function initDocuments() { Object.keys(documents).forEach(docType => { if (documents[docType]) { showStoredDocument(docType, documents[docType]); } }); }
-        function triggerUpload(docType) { document.getElementById(`${docType}-input`).click(); }
-        function openModal(src) { document.getElementById('modal').style.display = 'block'; document.getElementById('modal-img').src = src; }
-        function closeModal() { document.getElementById('modal').style.display = 'none'; }
-        function downloadDocument(docType) { const dataUrl = documents[docType]; if (!dataUrl) return; const link = document.createElement('a'); link.href = dataUrl; const extension = dataUrl.split(';')[0].split('/')[1] === 'pdf' ? 'pdf' : 'jpg'; link.download = `${docType}_card.${extension}`; document.body.appendChild(link); link.click(); document.body.removeChild(link); }
-        function showStoredDocument(docType, dataUrl) { const card = document.getElementById(`${docType}-card`); const title = card.querySelector('.title'); const btn = card.querySelector('.upload-btn'); const status = card.querySelector('.status'); const preview = card.querySelector('.preview'); const actions = card.querySelector('.action-buttons'); title.textContent = `Your ${docType.charAt(0).toUpperCase() + docType.slice(1)} Card`; btn.style.display = 'none'; status.textContent = 'Document Stored Securely'; status.className = 'status stored'; preview.src = dataUrl; preview.style.display = 'block'; actions.style.display = 'flex'; card.className = 'document-card ' + docType + ' stored-mode'; }
-        function removeDocument(docType) { localStorage.removeItem(docType); const card = document.getElementById(`${docType}-card`); const title = card.querySelector('.title'); const btn = card.querySelector('.upload-btn'); const status = card.querySelector('.status'); const preview = card.querySelector('.preview'); const actions = card.querySelector('.action-buttons'); title.textContent = `Upload Your ${docType.charAt(0).toUpperCase() + docType.slice(1)} Card`; btn.style.display = 'block'; status.textContent = 'Ready to upload'; status.className = 'status upload-ready'; preview.style.display = 'none'; actions.style.display = 'none'; card.className = 'document-card ' + docType + ' upload-mode'; documents[docType] = null; }
+        const documents = { aadhar: null, pan: null, license: null };
+        let currentKey = null;
+        const knownVerification = 'secure-vault-123';
+
+        function textToBuffer(text) {
+            return new TextEncoder().encode(text);
+        }
+
+        function bufferToText(buffer) {
+            return new TextDecoder().decode(buffer);
+        }
+
+        function base64Encode(buffer) {
+            return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        }
+
+        function base64Decode(base64) {
+            return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+        }
+
+        function generateSalt() {
+            return crypto.getRandomValues(new Uint8Array(16));
+        }
+
+        async function deriveKey(password, salt) {
+            const keyMaterial = await crypto.subtle.importKey('raw', textToBuffer(password), 'PBKDF2', false, ['deriveKey']);
+            return crypto.subtle.deriveKey(
+                { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+                keyMaterial,
+                { name: 'AES-GCM', length: 256 },
+                true,
+                ['encrypt', 'decrypt']
+            );
+        }
+
+        async function encryptData(data, key) {
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, textToBuffer(data));
+            return { iv: base64Encode(iv), encrypted: base64Encode(encrypted) };
+        }
+
+        async function decryptData(encryptedObj, key) {
+            const iv = base64Decode(encryptedObj.iv);
+            const encrypted = base64Decode(encryptedObj.encrypted);
+            const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, encrypted);
+            return bufferToText(decrypted);
+        }
+
+        function showPasswordModal(mode) {
+            const modal = document.getElementById('password-modal');
+            const title = document.getElementById('password-title');
+            title.textContent = mode === 'set' ? 'Set Password' : 'Enter Password';
+            modal.style.display = 'flex';
+            document.getElementById('password-input').focus();
+        }
+
+        async function handlePasswordSubmit(mode) {
+            const password = document.getElementById('password-input').value;
+            const message = document.getElementById('password-message');
+            message.textContent = '';
+
+            if (!password) {
+                message.textContent = 'Password cannot be empty';
+                return;
+            }
+
+            if (mode === 'set') {
+                const salt = generateSalt();
+                currentKey = await deriveKey(password, salt);
+                const verification = await encryptData(knownVerification, currentKey);
+                localStorage.setItem('salt', base64Encode(salt));
+                localStorage.setItem('verification', JSON.stringify(verification));
+                document.getElementById('password-modal').style.display = 'none';
+                initDocuments();
+            } else {
+                const salt = base64Decode(localStorage.getItem('salt'));
+                currentKey = await deriveKey(password, salt);
+                try {
+                    const verification = JSON.parse(localStorage.getItem('verification'));
+                    const decrypted = await decryptData(verification, currentKey);
+                    if (decrypted === knownVerification) {
+                        document.getElementById('password-modal').style.display = 'none';
+                        initDocuments();
+                    } else {
+                        message.textContent = 'Incorrect password';
+                    }
+                } catch (e) {
+                    message.textContent = 'Incorrect password';
+                }
+            }
+
+            document.getElementById('password-input').value = '';
+        }
+
+        async function initDocuments() {
+            for (const docType of Object.keys(documents)) {
+                const stored = localStorage.getItem(docType);
+                if (stored && currentKey) {
+                    try {
+                        const encryptedObj = JSON.parse(stored);
+                        const dataUrl = await decryptData(encryptedObj, currentKey);
+                        documents[docType] = dataUrl;
+                        showStoredDocument(docType, dataUrl);
+                    } catch (e) {
+                        console.error(`Failed to decrypt ${docType}: ${e}`);
+                    }
+                }
+            }
+        }
+
+        function triggerUpload(docType) {
+            document.getElementById(`${docType}-input`).click();
+        }
+
+        function openModal(src) {
+            document.getElementById('modal').style.display = 'block';
+            document.getElementById('modal-img').src = src;
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        async function downloadDocument(docType) {
+            let dataUrl = documents[docType];
+            if (!dataUrl && currentKey) {
+                const stored = localStorage.getItem(docType);
+                if (stored) {
+                    const encryptedObj = JSON.parse(stored);
+                    dataUrl = await decryptData(encryptedObj, currentKey);
+                }
+            }
+            if (!dataUrl) return;
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            const extension = dataUrl.split(';')[0].split('/')[1] === 'pdf' ? 'pdf' : 'jpg';
+            link.download = `${docType}_card.${extension}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function showStoredDocument(docType, dataUrl) {
+            const card = document.getElementById(`${docType}-card`);
+            const title = card.querySelector('.title');
+            const btn = card.querySelector('.upload-btn');
+            const status = card.querySelector('.status');
+            const preview = card.querySelector('.preview');
+            const actions = card.querySelector('.action-buttons');
+            title.textContent = `Your ${docType.charAt(0).toUpperCase() + docType.slice(1)} Card`;
+            btn.style.display = 'none';
+            status.textContent = 'Document Stored Securely';
+            status.className = 'status stored';
+            if (dataUrl.startsWith('data:image/')) {
+                preview.src = dataUrl;
+                preview.style.display = 'block';
+            } else {
+                preview.style.display = 'none'; // Hide for PDF; add better preview if needed
+            }
+            actions.style.display = 'flex';
+            card.className = 'document-card ' + docType + ' stored-mode';
+        }
+
+        function removeDocument(docType) {
+            localStorage.removeItem(docType);
+            const card = document.getElementById(`${docType}-card`);
+            const title = card.querySelector('.title');
+            const btn = card.querySelector('.upload-btn');
+            const status = card.querySelector('.status');
+            const preview = card.querySelector('.preview');
+            const actions = card.querySelector('.action-buttons');
+            title.textContent = `Upload Your ${docType.charAt(0).toUpperCase() + docType.slice(1)} Card`;
+            btn.style.display = 'block';
+            status.textContent = 'Ready to upload';
+            status.className = 'status upload-ready';
+            preview.style.display = 'none';
+            actions.style.display = 'none';
+            card.className = 'document-card ' + docType + ' upload-mode';
+            documents[docType] = null;
+        }
+
         // PWA Install - unchanged
-        let deferredPrompt; const installBtn = document.getElementById('install-app'); window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; installBtn.style.display = 'inline-block'; }); installBtn.addEventListener('click', async () => { if (deferredPrompt) { deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; if (outcome === 'accepted') { deferredPrompt = null; installBtn.style.display = 'none'; } } });
+        let deferredPrompt;
+        const installBtn = document.getElementById('install-app');
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.style.display = 'inline-block';
+        });
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    deferredPrompt = null;
+                    installBtn.style.display = 'none';
+                }
+            }
+        });
+
         // Service Worker - now external
-        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').then((registration) => { console.log('SW registered: ', registration); }).catch((error) => { console.log('SW registration failed: ', error); }); }
-        document.addEventListener('DOMContentLoaded', function() { initDocuments(); ['aadhar', 'pan', 'license'].forEach(docType => { document.getElementById(`${docType}-input`).addEventListener('change', function(e) { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = function(e) { const dataUrl = e.target.result; localStorage.setItem(docType, dataUrl); documents[docType] = dataUrl; showStoredDocument(docType, dataUrl); }; reader.readAsDataURL(file); } }); }); });
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').then((registration) => {
+                console.log('SW registered: ', registration);
+            }).catch((error) => {
+                console.log('SW registration failed: ', error);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const submitBtn = document.getElementById('submit-password');
+            const mode = localStorage.getItem('salt') ? 'enter' : 'set';
+            showPasswordModal(mode);
+            submitBtn.addEventListener('click', () => handlePasswordSubmit(mode));
+
+            ['aadhar', 'pan', 'license'].forEach(docType => {
+                document.getElementById(`${docType}-input`).addEventListener('change', async function(e) {
+                    const file = e.target.files[0];
+                    if (file && currentKey) {
+                        const reader = new FileReader();
+                        reader.onload = async function(e) {
+                            const dataUrl = e.target.result;
+                            const encrypted = await encryptData(dataUrl, currentKey);
+                            localStorage.setItem(docType, JSON.stringify(encrypted));
+                            documents[docType] = dataUrl;
+                            showStoredDocument(docType, dataUrl);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            });
+        });
     </script>
 </body>
 </html>
