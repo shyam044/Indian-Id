@@ -128,12 +128,27 @@
         function bufferToText(buffer) {
             return new TextDecoder().decode(buffer);
         }
-        function base64Encode(buffer) {
-            return btoa(String.fromCharCode(...new Uint8Array(buffer)));
-        }
-        function base64Decode(base64) {
-            return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-        }
+// SAFE BASE64 ENCODE / DECODE (handles large files without stack overflow)
+function base64Encode(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    // Process in 32 KB chunks (fast + safe)
+    for (let i = 0; i < bytes.length; i += 32768) {
+        const chunk = bytes.subarray(i, i + 32768);
+        binary += String.fromCharCode.apply(null, chunk);
+    }
+    return btoa(binary);
+}
+
+function base64Decode(base64) {
+    const binaryString = atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+}
         function generateSalt() {
             return crypto.getRandomValues(new Uint8Array(16));
         }
