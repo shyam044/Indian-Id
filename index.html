@@ -74,6 +74,20 @@
             <div class="password-message" id="password-message"></div>
         </div>
     </div>
+    <!-- Other Document Modal -->
+<div class="password-modal" id="other-modal" style="display:none; align-items:center; justify-content:center;">
+    <div class="password-container" style="max-width:480px;">
+        <h2>Add Other Document</h2>
+        <input type="text" id="other-name" placeholder="Give this document a name (e.g., Passport)" />
+        <input type="file" id="other-file-input" accept="image/*,.pdf" style="margin-top:10px;" />
+        <div style="display:flex; gap:10px; justify-content:center; margin-top:12px;">
+            <button id="other-upload-btn" style="background: linear-gradient(135deg, #28a745, #20c997); color:white; border-radius:20px; padding:8px 16px;">Upload</button>
+            <button id="other-cancel-btn" style="background:#dc3545; color:white; border-radius:20px; padding:8px 16px;">Cancel</button>
+        </div>
+        <div id="other-message" class="password-message"></div>
+    </div>
+</div>
+
     <div class="container">
         <div class="install-section">
             <button class="install-btn" id="install-app" style="display: none;">📱 Install App to Device</button>
@@ -116,251 +130,456 @@
                     <button class="remove-btn" id="license-remove" onclick="removeDocument('license')">❌ Remove</button>
                 </div>
             </div>
+                <div class="document-card other-add upload-mode" id="other-add-card" style="display:flex; align-items:center; justify-content:center; cursor:pointer;">
+        <div style="text-align:center;">
+            <span class="icon" style="font-size:2.6em">➕</span>
+            <div class="title">Add Other Document</div>
+            <div style="margin-top:8px; font-size:0.9em; color:#666;">Click to name & upload</div>
+        </div>
+    </div>
         </div>
     </div>
     <script>
-        const documents = { aadhar: null, pan: null, license: null };
-        let currentKey = null;
-        const knownVerification = 'secure-vault-123';
-        function textToBuffer(text) {
-            return new TextEncoder().encode(text);
-        }
-        function bufferToText(buffer) {
-            return new TextDecoder().decode(buffer);
-        }
-// SAFE BASE64 ENCODE / DECODE (handles large files without stack overflow)
+/* -------------------------
+   EXISTING CRYPTO HELPERS
+   ------------------------- */
+const documents = { aadhar: null, pan: null, license: null };
+let currentKey = null;
+const knownVerification = 'secure-vault-123';
+
+function textToBuffer(text) { return new TextEncoder().encode(text); }
+function bufferToText(buffer) { return new TextDecoder().decode(buffer); }
+
+// SAFE BASE64 ENCODE / DECODE
 function base64Encode(buffer) {
     const bytes = new Uint8Array(buffer);
     let binary = '';
-    // Process in 32 KB chunks (fast + safe)
     for (let i = 0; i < bytes.length; i += 32768) {
         const chunk = bytes.subarray(i, i + 32768);
         binary += String.fromCharCode.apply(null, chunk);
     }
     return btoa(binary);
 }
-
 function base64Decode(base64) {
     const binaryString = atob(base64);
     const len = binaryString.length;
     const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
+    for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
     return bytes;
 }
-        function generateSalt() {
-            return crypto.getRandomValues(new Uint8Array(16));
-        }
-        async function deriveKey(password, salt) {
-            const keyMaterial = await crypto.subtle.importKey('raw', textToBuffer(password), 'PBKDF2', false, ['deriveKey']);
-            return crypto.subtle.deriveKey(
-                { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
-                keyMaterial,
-                { name: 'AES-GCM', length: 256 },
-                true,
-                ['encrypt', 'decrypt']
-            );
-        }
-        async function encryptData(data, key) {
-            const iv = crypto.getRandomValues(new Uint8Array(12));
-            const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, textToBuffer(data));
-            return { iv: base64Encode(iv), encrypted: base64Encode(encrypted) };
-        }
-        async function decryptData(encryptedObj, key) {
-            const iv = base64Decode(encryptedObj.iv);
-            const encrypted = base64Decode(encryptedObj.encrypted);
-            const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, encrypted);
-            return bufferToText(decrypted);
-        }
-        function showPasswordModal(mode) {
-            const modal = document.getElementById('password-modal');
-            const title = document.getElementById('password-title');
-            title.textContent = mode === 'set' ? 'Set Password' : 'Enter Password';
-            modal.style.display = 'flex';
-            document.getElementById('password-input').focus();
-        }
-        async function handlePasswordSubmit(mode) {
-            const password = document.getElementById('password-input').value;
-            const message = document.getElementById('password-message');
-            message.textContent = '';
-            if (!password) {
-                message.textContent = 'Password cannot be empty';
+
+function generateSalt() {
+    return crypto.getRandomValues(new Uint8Array(16));
+}
+async function deriveKey(password, salt) {
+    const keyMaterial = await crypto.subtle.importKey('raw', textToBuffer(password), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        true,
+        ['encrypt', 'decrypt']
+    );
+}
+async function encryptData(data, key) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, textToBuffer(data));
+    return { iv: base64Encode(iv), encrypted: base64Encode(encrypted) };
+}
+async function decryptData(encryptedObj, key) {
+    const iv = base64Decode(encryptedObj.iv);
+    const encrypted = base64Decode(encryptedObj.encrypted);
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, encrypted);
+    return bufferToText(decrypted);
+}
+
+/* -------------------------
+   UTIL: slugify and registry
+   ------------------------- */
+function slugify(name) {
+    return name.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+}
+function loadCustomRegistry() {
+    try { return JSON.parse(localStorage.getItem('custom_docs') || '[]'); } catch(e){ return []; }
+}
+function saveCustomRegistry(arr) { localStorage.setItem('custom_docs', JSON.stringify(arr)); }
+
+/* -------------------------
+   UI Helpers (preview/modal)
+   ------------------------- */
+function openModal(src) {
+    document.getElementById('modal').style.display = 'block';
+    document.getElementById('modal-img').src = src;
+}
+function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+function showStoredDocument(docType, dataUrl) {
+    // This function works for both static built-in docs and dynamically created ones.
+    const card = document.getElementById(`${docType}-card`);
+    if (!card) return;
+    const title = card.querySelector('.title');
+    const btn = card.querySelector('.upload-btn');
+    const status = card.querySelector('.status');
+    const preview = card.querySelector('.preview');
+    const actions = card.querySelector('.action-buttons');
+
+    title.textContent = `Your ${docTypeLabelFromKey(docType)} Card`;
+    if (btn) btn.style.display = 'none';
+    if (status) {
+        status.textContent = dataUrl.startsWith('data:application/pdf') ? 'PDF Stored Securely (No Preview)' : 'Document Stored Securely';
+        status.className = 'status stored';
+    }
+    if (preview) {
+        if (dataUrl.startsWith('data:image/')) { preview.src = dataUrl; preview.style.display = 'block'; preview.onclick = () => openModal(dataUrl); }
+        else preview.style.display = 'none';
+    }
+    if (actions) actions.style.display = 'flex';
+    card.className = 'document-card ' + docType + ' stored-mode';
+}
+function docTypeLabelFromKey(key) {
+    // for display in title
+    if (key === 'aadhar' || key === 'pan' || key === 'license') {
+        return key.charAt(0).toUpperCase() + key.slice(1);
+    }
+    // custom keys are like 'other-passport' or similar
+    const meta = loadCustomRegistry().find(m => m.key === key);
+    return meta ? meta.label : key;
+}
+
+/* -------------------------
+   DOWNLOAD & REMOVE (works for dynamic keys)
+   ------------------------- */
+async function downloadDocument(docType) {
+    let dataUrl = documents[docType];
+    if (!dataUrl && currentKey) {
+        const stored = localStorage.getItem(docType);
+        if (stored) {
+            try {
+                const encryptedObj = JSON.parse(stored);
+                dataUrl = await decryptData(encryptedObj, currentKey);
+            } catch (e) {
+                alert('Failed to decrypt document for download: ' + e.message);
                 return;
             }
-            try {
-                if (mode === 'set') {
-                    const salt = generateSalt();
-                    currentKey = await deriveKey(password, salt);
-                    const verification = await encryptData(knownVerification, currentKey);
-                    localStorage.setItem('salt', base64Encode(salt));
-                    localStorage.setItem('verification', JSON.stringify(verification));
-                    document.getElementById('password-modal').style.display = 'none';
-                    initDocuments();
-                } else {
-                    const salt = base64Decode(localStorage.getItem('salt'));
-                    currentKey = await deriveKey(password, salt);
-                    const verification = JSON.parse(localStorage.getItem('verification'));
-                    const decrypted = await decryptData(verification, currentKey);
-                    if (decrypted === knownVerification) {
-                        document.getElementById('password-modal').style.display = 'none';
-                        initDocuments();
-                    } else {
-                        message.textContent = 'Incorrect password';
-                    }
-                }
-            } catch (e) {
-                message.textContent = 'Error: ' + e.message;
-                console.error(e);
-            }
-            document.getElementById('password-input').value = '';
         }
-        async function initDocuments() {
-            for (const docType of Object.keys(documents)) {
-                const stored = localStorage.getItem(docType);
-                if (stored && currentKey) {
+    }
+    if (!dataUrl) return;
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    const extension = dataUrl.split(';')[0].split('/')[1] === 'pdf' ? 'pdf' : 'jpg';
+    link.download = `${docType}_card.${extension}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function removeDocument(docType) {
+    // remove localStorage item
+    localStorage.removeItem(docType);
+
+    // if custom, also remove from registry
+    if (!['aadhar','pan','license'].includes(docType)) {
+        let registry = loadCustomRegistry();
+        registry = registry.filter(m => m.key !== docType);
+        saveCustomRegistry(registry);
+    }
+
+    // remove DOM card (for custom) or reset built-in card
+    const card = document.getElementById(`${docType}-card`);
+    if (!card) return;
+
+    if (['aadhar','pan','license'].includes(docType)) {
+        const title = card.querySelector('.title');
+        const btn = card.querySelector('.upload-btn');
+        const status = card.querySelector('.status');
+        const preview = card.querySelector('.preview');
+        const actions = card.querySelector('.action-buttons');
+
+        title.textContent = `Upload Your ${docType.charAt(0).toUpperCase() + docType.slice(1)} Card`;
+        if (btn) btn.style.display = 'block';
+        if (status) { status.textContent = 'Ready to upload'; status.className = 'status upload-ready'; }
+        if (preview) { preview.style.display = 'none'; preview.src = ''; }
+        if (actions) actions.style.display = 'none';
+        card.className = 'document-card ' + docType + ' upload-mode';
+        documents[docType] = null;
+
+        // <-- KEY FIX: reset the file input so change event will fire again (even if user picks same file)
+        const inputEl = document.getElementById(`${docType}-input`);
+        if (inputEl) {
+            try { inputEl.value = ''; } catch (e) { /* ignore if browser prevents it */ }
+        }
+    } else {
+        // custom: remove the card element
+        card.parentNode.removeChild(card);
+    }
+}
+
+/* -------------------------
+   CUSTOM CARD CREATION
+   ------------------------- */
+function createCustomCardElement(key, label) {
+    // Create DOM structure matching other cards
+    const grid = document.querySelector('.documents-grid');
+    const div = document.createElement('div');
+    div.className = `document-card ${key} stored-mode`;
+    div.id = `${key}-card`;
+    div.innerHTML = `
+        <span class="icon">📁</span>
+        <div class="title">Your ${label} Card</div>
+        <div class="status stored">Document Stored Securely</div>
+        <img class="preview" id="${key}-preview" alt="${label} Preview" style="display:none;">
+        <div class="action-buttons" id="${key}-actions" style="display:flex;">
+            <button class="download-btn" id="${key}-download">⬇️ Download</button>
+            <button class="remove-btn" id="${key}-remove">❌ Remove</button>
+        </div>
+    `;
+    // Insert after the "Add Other" card (so new cards appear next)
+    const addCard = document.getElementById('other-add-card');
+    if (addCard && addCard.parentNode) addCard.parentNode.insertBefore(div, addCard.nextSibling);
+    else grid.appendChild(div);
+
+    // attach listeners
+    document.getElementById(`${key}-download`).addEventListener('click', () => downloadDocument(key));
+    document.getElementById(`${key}-remove`).addEventListener('click', () => {
+        if (confirm(`Remove "${label}" permanently?`)) removeDocument(key);
+    });
+}
+
+async function createAndStoreCustomDoc(label, dataUrl) {
+    // ensure unique key
+    let base = 'other-' + slugify(label || 'document');
+    let key = base;
+    const registry = loadCustomRegistry();
+    let counter = 1;
+    while (registry.some(r => r.key === key) || localStorage.getItem(key)) {
+        key = `${base}-${counter++}`;
+    }
+
+    // Encrypt and store under key
+    const encrypted = await encryptData(dataUrl, currentKey);
+    localStorage.setItem(key, JSON.stringify(encrypted));
+
+    // persist registry
+    registry.unshift({ key, label }); // add to front
+    saveCustomRegistry(registry);
+
+    // create DOM card and show preview
+    createCustomCardElement(key, label);
+    showStoredDocument(key, dataUrl);
+}
+
+/* -------------------------
+   INIT: load built-ins + customs
+   ------------------------- */
+async function initDocuments() {
+    // built-in docs
+    for (const docType of Object.keys(documents)) {
+        const stored = localStorage.getItem(docType);
+        if (stored && currentKey) {
+            try {
+                const encryptedObj = JSON.parse(stored);
+                const dataUrl = await decryptData(encryptedObj, currentKey);
+                documents[docType] = dataUrl;
+                showStoredDocument(docType, dataUrl);
+            } catch (e) {
+                console.error(`Failed to decrypt ${docType}: ${e}`);
+            }
+        }
+    }
+
+    // load custom registry and create cards
+    const registry = loadCustomRegistry();
+    for (const meta of registry) {
+        const { key, label } = meta;
+        try {
+            const stored = localStorage.getItem(key);
+            if (stored && currentKey) {
+                const encryptedObj = JSON.parse(stored);
+                const dataUrl = await decryptData(encryptedObj, currentKey);
+                // create card and populate
+                createCustomCardElement(key, label);
+                showStoredDocument(key, dataUrl);
+            } else {
+                // If localStorage missing data for the entry, remove it from registry
+                let reg = loadCustomRegistry().filter(r => r.key !== key);
+                saveCustomRegistry(reg);
+            }
+        } catch (e) {
+            console.error(`Failed to load custom doc ${key}: ${e}`);
+        }
+    }
+}
+
+/* -------------------------
+   OTHER-MODAL flow (UI)
+   ------------------------- */
+function openOtherModal() {
+    document.getElementById('other-modal').style.display = 'flex';
+    document.getElementById('other-name').value = '';
+    document.getElementById('other-file-input').value = '';
+    document.getElementById('other-message').textContent = '';
+    document.getElementById('other-name').focus();
+}
+function closeOtherModal() { document.getElementById('other-modal').style.display = 'none'; }
+
+async function handleOtherUpload() {
+    const name = document.getElementById('other-name').value.trim();
+    const fileInput = document.getElementById('other-file-input');
+    const msg = document.getElementById('other-message');
+    msg.textContent = '';
+
+    if (!name) { msg.textContent = 'Please enter a name for the document.'; return; }
+    if (!fileInput.files || !fileInput.files[0]) { msg.textContent = 'Please choose a file to upload.'; return; }
+    if (!currentKey) { alert('Please submit your password first to enable secure uploads.'); return; }
+
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const dataUrl = e.target.result;
+            await createAndStoreCustomDoc(name, dataUrl);
+            closeOtherModal();
+        } catch (err) {
+            msg.textContent = 'Upload failed: ' + err.message;
+            console.error(err);
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+/* -------------------------
+   PWA & Service Worker (unchanged)
+   ------------------------- */
+let deferredPrompt;
+const installBtn = document.getElementById('install-app');
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (installBtn) installBtn.style.display = 'inline-block';
+});
+if (installBtn) installBtn.addEventListener('click', async () => {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            deferredPrompt = null;
+            installBtn.style.display = 'none';
+        }
+    }
+});
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').then((registration) => {
+        console.log('SW registered: ', registration);
+    }).catch((error) => {
+        console.log('SW registration failed: ', error);
+    });
+}
+
+/* -------------------------
+   DOMContentLoaded wiring
+   ------------------------- */
+
+   // Add this function somewhere near other UI helpers (before DOMContentLoaded)
+function triggerUpload(docType) {
+    const input = document.getElementById(`${docType}-input`);
+    if (!input) return;
+    // Clear previous selection so selecting the same file fires the change event.
+    try { input.value = ''; } catch (e) { /* some browsers don't allow setting value, ignore */ }
+    input.click();
+}
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (!window.crypto || !window.crypto.subtle) {
+        alert('This app requires a secure connection (HTTPS or localhost). Encryption features will not work on insecure contexts like file:// or HTTP.');
+    }
+    const submitBtn = document.getElementById('submit-password');
+    const mode = localStorage.getItem('salt') ? 'enter' : 'set';
+    showPasswordModal(mode);
+    submitBtn.addEventListener('click', () => handlePasswordSubmit(mode));
+
+    // upload for built-in docs
+    ['aadhar', 'pan', 'license'].forEach(docType => {
+        document.getElementById(`${docType}-input`).addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (!currentKey) {
+                alert('Please submit your password first to enable secure uploads.');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                (async () => {
                     try {
-                        const encryptedObj = JSON.parse(stored);
-                        const dataUrl = await decryptData(encryptedObj, currentKey);
+                        const dataUrl = e.target.result;
+                        const encrypted = await encryptData(dataUrl, currentKey);
+                        localStorage.setItem(docType, JSON.stringify(encrypted));
                         documents[docType] = dataUrl;
                         showStoredDocument(docType, dataUrl);
-                    } catch (e) {
-                        console.error(`Failed to decrypt ${docType}: ${e}`);
+                    } catch (err) {
+                        alert('Upload failed: ' + err.message);
+                        console.error(err);
                     }
-                }
-            }
-        }
-        function triggerUpload(docType) {
-            document.getElementById(`${docType}-input`).click();
-        }
-        function openModal(src) {
-            document.getElementById('modal').style.display = 'block';
-            document.getElementById('modal-img').src = src;
-        }
-        function closeModal() {
-            document.getElementById('modal').style.display = 'none';
-        }
-        async function downloadDocument(docType) {
-            let dataUrl = documents[docType];
-            if (!dataUrl && currentKey) {
-                const stored = localStorage.getItem(docType);
-                if (stored) {
-                    try {
-                        const encryptedObj = JSON.parse(stored);
-                        dataUrl = await decryptData(encryptedObj, currentKey);
-                    } catch (e) {
-                        alert('Failed to decrypt document for download: ' + e.message);
-                        return;
-                    }
-                }
-            }
-            if (!dataUrl) return;
-            const link = document.createElement('a');
-            link.href = dataUrl;
-            const extension = dataUrl.split(';')[0].split('/')[1] === 'pdf' ? 'pdf' : 'jpg';
-            link.download = `${docType}_card.${extension}`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-        function showStoredDocument(docType, dataUrl) {
-            const card = document.getElementById(`${docType}-card`);
-            const title = card.querySelector('.title');
-            const btn = card.querySelector('.upload-btn');
-            const status = card.querySelector('.status');
-            const preview = card.querySelector('.preview');
-            const actions = card.querySelector('.action-buttons');
-            title.textContent = `Your ${docType.charAt(0).toUpperCase() + docType.slice(1)} Card`;
-            btn.style.display = 'none';
-            status.textContent = dataUrl.startsWith('data:application/pdf') ? 'PDF Stored Securely (No Preview)' : 'Document Stored Securely';
-            status.className = 'status stored';
-            if (dataUrl.startsWith('data:image/')) {
-                preview.src = dataUrl;
-                preview.style.display = 'block';
+                })();
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+
+    // other-add click
+    const otherAdd = document.getElementById('other-add-card');
+    if (otherAdd) otherAdd.addEventListener('click', openOtherModal);
+
+    // wire other-modal buttons
+    document.getElementById('other-upload-btn').addEventListener('click', handleOtherUpload);
+    document.getElementById('other-cancel-btn').addEventListener('click', closeOtherModal);
+
+    // initialize documents after password accepted (initDocuments gets called from password flow)
+});
+/* -------------------------
+   PASSWORD modal helpers
+   (they call initDocuments() on success)
+   ------------------------- */
+function showPasswordModal(mode) {
+    const modal = document.getElementById('password-modal');
+    const title = document.getElementById('password-title');
+    title.textContent = mode === 'set' ? 'Set Password' : 'Enter Password';
+    modal.style.display = 'flex';
+    document.getElementById('password-input').focus();
+}
+async function handlePasswordSubmit(mode) {
+    const password = document.getElementById('password-input').value;
+    const message = document.getElementById('password-message');
+    message.textContent = '';
+    if (!password) { message.textContent = 'Password cannot be empty'; return; }
+    try {
+        if (mode === 'set') {
+            const salt = generateSalt();
+            currentKey = await deriveKey(password, salt);
+            const verification = await encryptData(knownVerification, currentKey);
+            localStorage.setItem('salt', base64Encode(salt));
+            localStorage.setItem('verification', JSON.stringify(verification));
+            document.getElementById('password-modal').style.display = 'none';
+            await initDocuments();
+        } else {
+            const salt = base64Decode(localStorage.getItem('salt'));
+            currentKey = await deriveKey(password, salt);
+            const verification = JSON.parse(localStorage.getItem('verification'));
+            const decrypted = await decryptData(verification, currentKey);
+            if (decrypted === knownVerification) {
+                document.getElementById('password-modal').style.display = 'none';
+                await initDocuments();
             } else {
-                preview.style.display = 'none';
+                message.textContent = 'Incorrect password';
             }
-            actions.style.display = 'flex';
-            card.className = 'document-card ' + docType + ' stored-mode';
         }
-        function removeDocument(docType) {
-            localStorage.removeItem(docType);
-            const card = document.getElementById(`${docType}-card`);
-            const title = card.querySelector('.title');
-            const btn = card.querySelector('.upload-btn');
-            const status = card.querySelector('.status');
-            const preview = card.querySelector('.preview');
-            const actions = card.querySelector('.action-buttons');
-            title.textContent = `Upload Your ${docType.charAt(0).toUpperCase() + docType.slice(1)} Card`;
-            btn.style.display = 'block';
-            status.textContent = 'Ready to upload';
-            status.className = 'status upload-ready';
-            preview.style.display = 'none';
-            actions.style.display = 'none';
-            card.className = 'document-card ' + docType + ' upload-mode';
-            documents[docType] = null;
-        }
-        // PWA Install - unchanged
-        let deferredPrompt;
-        const installBtn = document.getElementById('install-app');
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            installBtn.style.display = 'inline-block';
-        });
-        installBtn.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    deferredPrompt = null;
-                    installBtn.style.display = 'none';
-                }
-            }
-        });
-        // Service Worker - now external
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').then((registration) => {
-                console.log('SW registered: ', registration);
-            }).catch((error) => {
-                console.log('SW registration failed: ', error);
-            });
-        }
-        document.addEventListener('DOMContentLoaded', function() {
-            if (!window.crypto || !window.crypto.subtle) {
-                alert('This app requires a secure connection (HTTPS or localhost). Encryption features will not work on insecure contexts like file:// or HTTP.');
-            }
-            const submitBtn = document.getElementById('submit-password');
-            const mode = localStorage.getItem('salt') ? 'enter' : 'set';
-            showPasswordModal(mode);
-            submitBtn.addEventListener('click', () => handlePasswordSubmit(mode));
-            ['aadhar', 'pan', 'license'].forEach(docType => {
-                document.getElementById(`${docType}-input`).addEventListener('change', function(e) {
-                    const file = e.target.files[0];
-                    if (!file) return;
-                    if (!currentKey) {
-                        alert('Please submit your password first to enable secure uploads.');
-                        return;
-                    }
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        (async () => {
-                            try {
-                                const dataUrl = e.target.result;
-                                const encrypted = await encryptData(dataUrl, currentKey);
-                                localStorage.setItem(docType, JSON.stringify(encrypted));
-                                documents[docType] = dataUrl;
-                                showStoredDocument(docType, dataUrl);
-                            } catch (err) {
-                                alert('Upload failed: ' + err.message);
-                                console.error(err);
-                            }
-                        })();
-                    };
-                    reader.readAsDataURL(file);
-                });
-            });
-        });
-    </script>
+    } catch (e) {
+        message.textContent = 'Error: ' + e.message;
+        console.error(e);
+    }
+    document.getElementById('password-input').value = '';
+}
+</script>
+
 </body>
 </html>
