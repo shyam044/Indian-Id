@@ -333,17 +333,24 @@ function createCustomCardElement(key, label) {
             <button class="remove-btn" id="${key}-remove">❌ Remove</button>
         </div>
     `;
-    // Insert after the "Add Other" card (so new cards appear next)
+    // Insert BEFORE the "Add Other" card so the add-card moves down each time.
     const addCard = document.getElementById('other-add-card');
-    if (addCard && addCard.parentNode) addCard.parentNode.insertBefore(div, addCard.nextSibling);
-    else grid.appendChild(div);
+    if (addCard && addCard.parentNode) {
+        addCard.parentNode.insertBefore(div, addCard);
+    } else {
+        grid.appendChild(div);
+    }
 
     // attach listeners
     document.getElementById(`${key}-download`).addEventListener('click', () => downloadDocument(key));
     document.getElementById(`${key}-remove`).addEventListener('click', () => {
         if (confirm(`Remove "${label}" permanently?`)) removeDocument(key);
     });
+
+    // small UX improvement: scroll new card into view
+    try { div.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { /* ignore */ }
 }
+
 
 async function createAndStoreCustomDoc(label, dataUrl) {
     // ensure unique key
