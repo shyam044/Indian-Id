@@ -273,7 +273,13 @@ async function downloadDocument(docType) {
     document.body.removeChild(link);
 }
 
-function removeDocument(docType) {
+async function removeDocument(docType) {
+
+    // Ask for confirmation BEFORE deleting
+    const docLabel = docTypeLabelFromKey(docType);
+    const confirmDelete = confirm(`Are you sure you want to remove "${docLabel}"?`);
+    if (!confirmDelete) return; // If user clicks "Cancel", do nothing
+
     // remove localStorage item
     localStorage.removeItem(docType);
 
@@ -295,7 +301,7 @@ function removeDocument(docType) {
         const preview = card.querySelector('.preview');
         const actions = card.querySelector('.action-buttons');
 
-        title.textContent = `Upload Your ${docType.charAt(0).toUpperCase() + docType.slice(1)} Card`;
+        title.textContent = `Upload Your ${docLabel} Card`;
         if (btn) btn.style.display = 'block';
         if (status) { status.textContent = 'Ready to upload'; status.className = 'status upload-ready'; }
         if (preview) { preview.style.display = 'none'; preview.src = ''; }
@@ -303,16 +309,17 @@ function removeDocument(docType) {
         card.className = 'document-card ' + docType + ' upload-mode';
         documents[docType] = null;
 
-        // <-- KEY FIX: reset the file input so change event will fire again (even if user picks same file)
+        // Reset the file input
         const inputEl = document.getElementById(`${docType}-input`);
         if (inputEl) {
-            try { inputEl.value = ''; } catch (e) { /* ignore if browser prevents it */ }
+            try { inputEl.value = ''; } catch (e) {}
         }
     } else {
-        // custom: remove the card element
+        // custom doc — remove the card element
         card.parentNode.removeChild(card);
     }
 }
+
 
 /* -------------------------
    CUSTOM CARD CREATION
